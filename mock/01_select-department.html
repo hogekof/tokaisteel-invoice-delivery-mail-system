@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>部門選択 - 請求書・納品書メール送信システム</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .select-container {
+      max-width: 500px;
+      margin: 100px auto;
+    }
+    .select-card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      padding: 40px;
+      text-align: center;
+    }
+    .select-card h1 {
+      font-size: 24px;
+      margin-bottom: 10px;
+      color: #2c3e50;
+    }
+    .select-card p {
+      color: #666;
+      margin-bottom: 30px;
+    }
+    .select-card .form-group {
+      text-align: left;
+      margin-bottom: 30px;
+    }
+    .select-card .form-control {
+      font-size: 16px;
+      padding: 12px 15px;
+    }
+    .select-card .btn {
+      width: 100%;
+      padding: 15px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <!-- ナビゲーション -->
+  <nav class="nav">
+    <div class="nav-brand">請求書・納品書メール送信システム</div>
+  </nav>
+
+  <!-- 部門選択 -->
+  <div class="select-container">
+    <div class="select-card">
+      <h1>部門選択</h1>
+      <p>作業する部門を選択してください</p>
+
+      <div class="form-group">
+        <label for="department">部門</label>
+        <select id="department" class="form-control">
+          <option value="">-- 部門を選択 --</option>
+          <option value="D01">営業1課</option>
+          <option value="D02">営業2課</option>
+          <option value="D03">営業3課</option>
+          <option value="D04">名古屋営業所</option>
+          <option value="D05">大阪営業所</option>
+        </select>
+      </div>
+
+      <button class="btn btn-primary" onclick="startWork()">
+        開始
+      </button>
+    </div>
+  </div>
+
+  <script>
+    function startWork() {
+      const dept = document.getElementById('department');
+      if (!dept.value) {
+        alert('部門を選択してください');
+        return;
+      }
+      // URLパラメータ付きでメイン画面へ
+      window.location.href = '02_main.html?dept=' + dept.value;
+    }
+  </script>
+</body>
+</html>

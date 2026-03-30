@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>営業確認 - 請求書・納品書メール送信システム</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* 行クリック可能スタイル */
+    .clickable-row {
+      cursor: pointer;
+    }
+    .clickable-row:hover {
+      background-color: #e3f2fd !important;
+    }
+
+    /* モーダル */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-overlay.show {
+      display: flex;
+    }
+    .modal {
+      background: #fff;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 900px;
+      max-height: 90vh;
+      overflow: auto;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      border-bottom: 1px solid #eee;
+      background: #f8f9fa;
+    }
+    .modal-header h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #666;
+    }
+    .modal-close:hover {
+      color: #333;
+    }
+    .modal-body {
+      padding: 20px;
+    }
+    .modal-footer {
+      padding: 15px 20px;
+      border-top: 1px solid #eee;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      background: #f8f9fa;
+    }
+
+    /* 書類情報 */
+    .doc-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 4px;
+    }
+    .doc-info-item {
+      font-size: 14px;
+    }
+    .doc-info-item .label {
+      color: #666;
+      margin-bottom: 3px;
+    }
+    .doc-info-item .value {
+      font-weight: bold;
+    }
+
+    /* 明細テーブル */
+    .detail-table input {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      text-align: right;
+    }
+    .detail-table input:focus {
+      outline: none;
+      border-color: #3498db;
+    }
+    .detail-table input.modified {
+      border-color: #e74c3c;
+      background-color: #fff5f5;
+    }
+    .detail-table .product-name {
+      text-align: left;
+    }
+    .detail-table .calc-amount {
+      background: #f0f0f0;
+      font-weight: bold;
+    }
+
+    /* 合計行 */
+    .total-row {
+      font-size: 16px;
+      font-weight: bold;
+      background: #e8f5e9 !important;
+    }
+    .total-row td {
+      padding: 15px !important;
+    }
+
+    /* 詳細ボタン */
+    .detail-btn {
+      background: #3498db;
+      color: #fff;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .detail-btn:hover {
+      background: #2980b9;
+    }
+
+    /* 修正マーク */
+    .modified-mark {
+      color: #e74c3c;
+      font-size: 12px;
+      margin-left: 5px;
+    }
+
+    /* ダウンロードボタン */
+    .download-btn {
+      background: #27ae60;
+      color: #fff;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .download-btn:hover {
+      background: #219a52;
+    }
+    .download-btn::before {
+      content: "↓";
+      font-weight: bold;
+    }
+
+    /* 生成中バッジ */
+    .generating-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      background: #fff3cd;
+      color: #856404;
+      border-radius: 4px;
+      font-size: 12px;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    /* フィルター */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 15px;
+      padding: 10px 15px;
+      background: #f8f9fa;
+      border-radius: 4px;
+    }
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .filter-group label {
+      font-size: 14px;
+      font-weight: bold;
+      color: #555;
+    }
+    .filter-select {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      min-width: 150px;
+      background: #fff;
+    }
+    .filter-select:focus {
+      outline: none;
+      border-color: #3498db;
+    }
+
+    /* 送信結果ステータス */
+    .status-sent {
+      display: inline-block;
+      padding: 4px 10px;
+      background: #e3f2fd;
+      color: #1565c0;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .status-not-sent {
+      display: inline-block;
+      padding: 4px 10px;
+      background: #f5f5f5;
+      color: #757575;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    /* 送信ON/OFFステータス */
+    .status-on {
+      display: inline-block;
+      padding: 4px 12px;
+      background: #e8f5e9;
+      color: #2e7d32;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .status-off {
+      display: inline-block;
+      padding: 4px 12px;
+      background: #ffebee;
+      color: #c62828;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    /* トースト通知 */
+    .toast {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      padding: 15px 20px;
+      background: #333;
+      color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 2000;
+      display: none;
+      max-width: 400px;
+      animation: slideIn 0.3s ease;
+    }
+    .toast.show {
+      display: block;
+    }
+    .toast.info {
+      background: #2196f3;
+    }
+    .toast.success {
+      background: #4caf50;
+    }
+    .toast.warning {
+      background: #ff9800;
+    }
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    /* 設定保存インジケーター */
+    .save-indicator {
+      display: inline-block;
+      font-size: 11px;
+      color: #27ae60;
+      margin-left: 5px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .save-indicator.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <!-- ナビゲーション -->
+  <nav class="nav">
+    <div class="nav-brand">請求書・納品書メール送信システム</div>
+    <div class="nav-right">
+      <span id="currentDepartment" style="margin-right: 15px; font-weight: bold;"></span>
+      <a href="01_select-department.html" style="color: #fff; text-decoration: underline;">部門を変更</a>
+    </div>
+  </nav>
+
+  <!-- トースト通知 -->
+  <div class="toast" id="toast"></div>
+
+  <!-- メインコンテンツ -->
+  <div class="container">
+
+    <!-- ステータスカウント -->
+    <div class="status-counts">
+      <div class="status-count">
+        <div class="label">請求書（確認待ち）</div>
+        <div class="value" style="color: #f39c12;">8</div>
+      </div>
+      <div class="status-count">
+        <div class="label">納品書（確認待ち）</div>
+        <div class="value" style="color: #f39c12;">5</div>
+      </div>
+      <div class="status-count">
+        <div class="label">処理予定</div>
+        <div class="value" style="color: #27ae60;">18</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>確認待ち</span>
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <span>取得中...</span>
+          </div>
+          <div class="result" id="result">
+            請求書: <strong>15件</strong> / 納品書: <strong>8件</strong> を取得
+          </div>
+        </div>
+      </div>
+
+      <!-- タブ -->
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab('invoice')">
+          請求書 <span class="badge badge-warning">8</span>
+        </div>
+        <div class="tab" onclick="switchTab('delivery')">
+          納品書 <span class="badge badge-warning">5</span>
+        </div>
+      </div>
+
+      <!-- フィルター -->
+      <div class="filter-bar">
+        <div class="filter-group">
+          <label for="salesFilter">営業担当:</label>
+          <select id="salesFilter" class="filter-select" onchange="filterBySales()">
+            <option value="">全員</option>
+            <option value="田中 太郎">田中 太郎</option>
+            <option value="鈴木 一郎">鈴木 一郎</option>
+            <option value="佐藤 花子">佐藤 花子</option>
+            <option value="山田 次郎">山田 次郎</option>
+          </select>
+        </div>
+        <div style="margin-left: auto; font-size: 12px; color: #666;">
+          ※送信ON/OFF設定はブラウザに保存されます
+        </div>
+      </div>
+
+      <!-- 請求書タブ -->
+      <div class="tab-content active" id="invoice-tab">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="selectAllInvoice" onclick="toggleSelectAll('invoice')"></th>
+                <th>伝票番号</th>
+                <th>顧客名</th>
+                <th>営業担当</th>
+                <th>送信</th>
+                <th>合計金額</th>
+                <th>明細数</th>
+                <th>取得日</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><input type="checkbox" class="invoice-check"></td>
+                <td>INV-2026-0127-001</td>
+                <td>株式会社サンプル工業</td>
+                <td>田中 太郎</td>
+                <td>
+                  <label class="toggle">
+                    <input type="checkbox" checked data-slip="INV-2026-0127-001" onchange="saveMailSetting(this)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span class="save-indicator">保存済</span>
+                </td>
+                <td>¥1,250,000</td>
+                <td>3件</td>
+                <td>2026/01/27</td>
+                <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-001')">詳細</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" class="invoice-check"></td>
+                <td>INV-2026-0127-002</td>
+                <td>東海金属株式会社</td>
+                <td>鈴木 一郎</td>
+                <td>
+                  <label class="toggle">
+                    <input type="checkbox" checked data-slip="INV-2026-0127-002" onchange="saveMailSetting(this)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span class="save-indicator">保存済</span>
+                </td>
+                <td>¥920,000</td>
+                <td>2件</td>
+                <td>2026/01/27</td>
+                <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-002')">詳細</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" class="invoice-check"></td>
+                <td>INV-2026-0127-003</td>
+                <td>名古屋鋼材株式会社</td>
+                <td>鈴木 一郎</td>
+                <td>
+                  <label class="toggle">
+                    <input type="checkbox" data-slip="INV-2026-0127-003" onchange="saveMailSetting(this)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span class="save-indicator">保存済</span>
+                </td>
+                <td>¥2,340,000</td>
+                <td>2件</td>
+                <td>2026/01/27</td>
+                <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-003')">詳細</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" class="invoice-check"></td>
+                <td>INV-2026-0127-004</td>
+                <td>中部産業株式会社</td>
+                <td>佐藤 花子</td>
+                <td>
+                  <label class="toggle">
+                    <input type="checkbox" checked data-slip="INV-2026-0127-004" onchange="saveMailSetting(this)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span class="save-indicator">保存済</span>
+                </td>
+                <td>¥567,000</td>
+                <td>1件</td>
+                <td>2026/01/27</td>
+                <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-004')">詳細</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" class="invoice-check"></td>
+                <td>INV-2026-0127-005</td>
+                <td>三河工業株式会社</td>
+                <td>田中 太郎</td>
+                <td>
+                  <label class="toggle">
+                    <input type="checkbox" checked data-slip="INV-2026-0127-005" onchange="saveMailSetting(this)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span class="save-indicator">保存済</span>
+                </td>
+                <td>¥1,800,000</td>
+                <td>4件</td>
+                <td>2026/01/27</td>
+                <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-005')">詳細</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" class="invoice-check"></td>
+                <td>INV-2026-0126-008</td>
+                <td>愛知鋼材株式会社</td>
+                <td>山田 次郎</td>
+                <td>
+                  <label class="toggle">
+                    <input type="checkbox" data-slip="INV-2026-0126-008" onchange="saveMailSetting(this)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span class="save-indicator">保存済</span>
+                </td>
+                <td>¥2,150,000</td>
+                <td>5件</td>
+                <td>2026/01/26</td>
+                <td><button class="detail-btn" onclick="openDetail('INV-2026-0126-008')">詳細</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="action-bar">
+          <div class="selected-count">
+            <span id="invoiceSelectedCount">0</span>件選択中
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-primary" id="fetchBtn" onclick="startFetch()">
+              軽技Webから取得
+            </button>
+            <button class="btn btn-success" onclick="approve('invoice')">
+              選択した請求書を確定
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 納品書タブ -->
+      <div class="tab-content" id="delivery-tab">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="selectAllDelivery" onclick="toggleSelectAll('delivery')"></th>
+                <th>伝票番号</th>
+                <th>顧客名</th>
+                <th>営業担当</th>
+                <th>送信</th>
+                <th>合計金額</th>
+                <th>明細数</th>
+                <th>取得日</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><input type="checkbox" class="delivery-check"></td>
+                <td>DLV-2026-0127-001</td>
+                <td>株式会社サンプル工業</td>
+                <td>田中 太郎</td>
+                <td>
+                  <label class="toggle">
+                    <input type="checkbox" checked data-slip="DLV-2026-0127-001" onchange="saveMailSetting(this)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span class="save-indicator">保存済</span>
+                </td>
+                <td>¥450,000</td>
+                <td>2件</td>
+                <td>2026/01/27</td>
+                <td><button class="detail-btn" onclick="openDetail('DLV-2026-0127-001')">詳細</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" class="delivery-check"></td>
+                <td>DLV-2026-0127-002</td>
+                <td>東海金属株式会社</td>
+                <td>鈴木 一郎</td>
+                <td>
+                  <label class="toggle">
+                    <input type="checkbox" checked data-slip="DLV-2026-0127-002" onchange="saveMailSetting(this)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span class="save-indicator">保存済</span>
+                </td>
+                <td>¥230,000</td>
+                <td>1件</td>
+                <td>2026/01/27</td>
+                <td><button class="detail-btn" onclick="openDetail('DLV-2026-0127-002')">詳細</button></td>
+              </tr>
+              <tr>
+                <td><input type="checkbox" class="delivery-check"></td>
+                <td>DLV-2026-0127-003</td>
+                <td>岐阜鉄鋼株式会社</td>
+                <td>佐藤 花子</td>
+                <td>
+                  <label class="toggle">
+                    <input type="checkbox" data-slip="DLV-2026-0127-003" onchange="saveMailSetting(this)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span class="save-indicator">保存済</span>
+                </td>
+                <td>¥780,000</td>
+                <td>3件</td>
+                <td>2026/01/27</td>
+                <td><button class="detail-btn" onclick="openDetail('DLV-2026-0127-003')">詳細</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="action-bar">
+          <div class="selected-count">
+            <span id="deliverySelectedCount">0</span>件選択中
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-primary" onclick="startFetch()">
+              軽技Webから取得
+            </button>
+            <button class="btn btn-success" onclick="approve('delivery')">
+              選択した納品書を確定
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 処理予定一覧 -->
+    <div class="card">
+      <div class="card-header">処理予定（明日10:00処理）</div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="selectAllScheduled" onclick="toggleSelectAllScheduled()"></th>
+              <th>種別</th>
+              <th>伝票番号</th>
+              <th>顧客名</th>
+              <th>営業担当</th>
+              <th>送信</th>
+              <th>金額</th>
+              <th>確定日</th>
+              <th>PDF</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><input type="checkbox" class="scheduled-check"></td>
+              <td><span class="badge badge-primary">請求書</span></td>
+              <td>INV-2026-0126-001</td>
+              <td>静岡工業株式会社</td>
+              <td>佐藤 花子</td>
+              <td><span class="status-on">ON</span></td>
+              <td>¥980,000</td>
+              <td>2026/01/26 16:00</td>
+              <td><button class="download-btn" onclick="downloadPdf('INV-2026-0126-001')">ダウンロード</button></td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" class="scheduled-check"></td>
+              <td><span class="badge badge-primary">請求書</span></td>
+              <td>INV-2026-0126-002</td>
+              <td>浜松鋼材株式会社</td>
+              <td>山田 次郎</td>
+              <td><span class="status-on">ON</span></td>
+              <td>¥1,450,000</td>
+              <td>2026/01/26 16:00</td>
+              <td><button class="download-btn" onclick="downloadPdf('INV-2026-0126-002')">ダウンロード</button></td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" class="scheduled-check"></td>
+              <td><span class="badge badge-warning">納品書</span></td>
+              <td>DLV-2026-0126-001</td>
+              <td>静岡工業株式会社</td>
+              <td>佐藤 花子</td>
+              <td><span class="status-on">ON</span></td>
+              <td>¥320,000</td>
+              <td>2026/01/26 16:00</td>
+              <td><button class="download-btn" onclick="downloadPdf('DLV-2026-0126-001')">ダウンロード</button></td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" class="scheduled-check"></td>
+              <td><span class="badge badge-primary">請求書</span></td>
+              <td>INV-2026-0126-003</td>
+              <td>掛川金属株式会社</td>
+              <td>鈴木 一郎</td>
+              <td><span class="status-off">OFF</span></td>
+              <td>¥1,200,000</td>
+              <td>2026/01/26 16:00</td>
+              <td><button class="download-btn" onclick="downloadPdf('INV-2026-0126-003')">ダウンロード</button></td>
+            </tr>
+            <tr>
+              <td><input type="checkbox" class="scheduled-check"></td>
+              <td><span class="badge badge-primary">請求書</span></td>
+              <td>INV-2026-0127-010</td>
+              <td>岡崎鋼材株式会社</td>
+              <td>田中 太郎</td>
+              <td><span class="status-on">ON</span></td>
+              <td>¥750,000</td>
+              <td>2026/01/27 11:30</td>
+              <td><span class="generating-badge">生成中...</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="action-bar">
+        <div class="selected-count">
+          <span id="scheduledSelectedCount">0</span>件選択中
+        </div>
+        <button class="btn btn-secondary" onclick="cancelScheduled()">
+          選択した書類の確定を解除
+        </button>
+      </div>
+    </div>
+
+    <!-- 処理済み一覧（1週間分） -->
+    <div class="card">
+      <div class="card-header">処理済み（過去1週間）</div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>種別</th>
+              <th>伝票番号</th>
+              <th>顧客名</th>
+              <th>営業担当</th>
+              <th>送信結果</th>
+              <th>金額</th>
+              <th>処理日時</th>
+              <th>PDF</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="badge badge-primary">請求書</span></td>
+              <td>INV-2026-0125-001</td>
+              <td>豊田鋼材株式会社</td>
+              <td>田中 太郎</td>
+              <td><span class="status-sent">送信済み</span></td>
+              <td>¥1,890,000</td>
+              <td>2026/01/26 10:00</td>
+              <td><button class="download-btn" onclick="downloadPdf('INV-2026-0125-001')">ダウンロード</button></td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-warning">納品書</span></td>
+              <td>DLV-2026-0125-001</td>
+              <td>豊田鋼材株式会社</td>
+              <td>田中 太郎</td>
+              <td><span class="status-sent">送信済み</span></td>
+              <td>¥650,000</td>
+              <td>2026/01/26 10:00</td>
+              <td><button class="download-btn" onclick="downloadPdf('DLV-2026-0125-001')">ダウンロード</button></td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-primary">請求書</span></td>
+              <td>INV-2026-0125-002</td>
+              <td>刈谷工業株式会社</td>
+              <td>鈴木 一郎</td>
+              <td><span class="status-not-sent">送信なし</span></td>
+              <td>¥2,340,000</td>
+              <td>2026/01/26 10:00</td>
+              <td><button class="download-btn" onclick="downloadPdf('INV-2026-0125-002')">ダウンロード</button></td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-primary">請求書</span></td>
+              <td>INV-2026-0124-001</td>
+              <td>安城金属株式会社</td>
+              <td>佐藤 花子</td>
+              <td><span class="status-sent">送信済み</span></td>
+              <td>¥780,000</td>
+              <td>2026/01/25 10:00</td>
+              <td><button class="download-btn" onclick="downloadPdf('INV-2026-0124-001')">ダウンロード</button></td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-warning">納品書</span></td>
+              <td>DLV-2026-0124-001</td>
+              <td>安城金属株式会社</td>
+              <td>佐藤 花子</td>
+              <td><span class="status-sent">送信済み</span></td>
+              <td>¥280,000</td>
+              <td>2026/01/25 10:00</td>
+              <td><button class="download-btn" onclick="downloadPdf('DLV-2026-0124-001')">ダウンロード</button></td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-primary">請求書</span></td>
+              <td>INV-2026-0123-001</td>
+              <td>西尾鋼材株式会社</td>
+              <td>山田 次郎</td>
+              <td><span class="status-sent">送信済み</span></td>
+              <td>¥1,120,000</td>
+              <td>2026/01/24 10:00</td>
+              <td><button class="download-btn" onclick="downloadPdf('INV-2026-0123-001')">ダウンロード</button></td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-primary">請求書</span></td>
+              <td>INV-2026-0122-001</td>
+              <td>碧南工業株式会社</td>
+              <td>田中 太郎</td>
+              <td><span class="status-not-sent">送信なし</span></td>
+              <td>¥560,000</td>
+              <td>2026/01/23 10:00</td>
+              <td><button class="download-btn" onclick="downloadPdf('INV-2026-0122-001')">ダウンロード</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 詳細モーダル -->
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>明細確認</h2>
+        <button class="modal-close" onclick="closeDetail()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- 書類情報 -->
+        <div class="doc-info">
+          <div class="doc-info-item">
+            <div class="label">伝票番号</div>
+            <div class="value" id="modal-slip-number">INV-2026-0127-001</div>
+          </div>
+          <div class="doc-info-item">
+            <div class="label">顧客名</div>
+            <div class="value" id="modal-customer">株式会社サンプル工業</div>
+          </div>
+          <div class="doc-info-item">
+            <div class="label">取得日</div>
+            <div class="value" id="modal-date">2026/01/27</div>
+          </div>
+        </div>
+
+        <!-- 明細テーブル -->
+        <div class="table-container">
+          <table class="detail-table">
+            <thead>
+              <tr>
+                <th style="width: 80px;">行No</th>
+                <th style="width: 120px;">商品コード</th>
+                <th class="product-name">商品名</th>
+                <th style="width: 100px; text-align: right;">数量</th>
+                <th style="width: 120px; text-align: right;">単価</th>
+                <th style="width: 130px; text-align: right;">金額</th>
+              </tr>
+            </thead>
+            <tbody id="detail-tbody">
+              <tr>
+                <td>1</td>
+                <td>STL-001</td>
+                <td class="product-name">SS400 丸棒 φ20×1000</td>
+                <td style="text-align: right;">100</td>
+                <td style="text-align: right;">¥3,500</td>
+                <td style="text-align: right;">¥350,000</td>
+              </tr>
+              <tr>
+                <td>2</td>
+                <td>STL-002</td>
+                <td class="product-name">SS400 フラットバー 6×50×1000</td>
+                <td style="text-align: right;">200</td>
+                <td style="text-align: right;">¥2,500</td>
+                <td style="text-align: right;">¥500,000</td>
+              </tr>
+              <tr>
+                <td>3</td>
+                <td>STL-003</td>
+                <td class="product-name">S45C 丸棒 φ30×500</td>
+                <td style="text-align: right;">80</td>
+                <td style="text-align: right;">¥5,000</td>
+                <td style="text-align: right;">¥400,000</td>
+              </tr>
+              <tr class="total-row">
+                <td colspan="5" style="text-align: right;">合計金額</td>
+                <td style="text-align: right;">¥1,250,000</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeDetail()">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 部門マスタ
+    const DEPARTMENTS = {
+      'D01': '営業1課',
+      'D02': '営業2課',
+      'D03': '営業3課',
+      'D04': '名古屋営業所',
+      'D05': '大阪営業所'
+    };
+
+    // ページ読み込み時に部門チェックとlocalStorage読み込み
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      const deptCode = params.get('dept');
+      const deptName = DEPARTMENTS[deptCode];
+
+      if (!deptName) {
+        // 部門が指定されていない or 無効な場合は部門選択ページへ
+        window.location.href = '01_select-department.html';
+        return;
+      }
+      // 部門名を表示
+      document.getElementById('currentDepartment').textContent = deptName;
+      // タイトルに部門名を追加
+      document.title = deptName + ' - 請求書・納品書メール送信システム';
+
+      // localStorageから送信ON/OFF設定を復元
+      loadMailSettings();
+    })();
+
+    // 送信ON/OFF設定をlocalStorageから読み込み
+    function loadMailSettings() {
+      const savedSettings = JSON.parse(localStorage.getItem('mail_settings') || '{}');
+
+      document.querySelectorAll('[data-slip]').forEach(toggle => {
+        const slipNumber = toggle.dataset.slip;
+        if (slipNumber in savedSettings) {
+          toggle.checked = savedSettings[slipNumber];
+        }
+      });
+    }
+
+    // 送信ON/OFF設定をlocalStorageに保存
+    function saveMailSetting(toggle) {
+      const slipNumber = toggle.dataset.slip;
+      const savedSettings = JSON.parse(localStorage.getItem('mail_settings') || '{}');
+      savedSettings[slipNumber] = toggle.checked;
+      localStorage.setItem('mail_settings', JSON.stringify(savedSettings));
+
+      // 保存済み表示
+      const indicator = toggle.closest('td').querySelector('.save-indicator');
+      indicator.classList.add('show');
+      setTimeout(() => indicator.classList.remove('show'), 1500);
+    }
+
+    // 確定時にlocalStorageから該当エントリを削除
+    function clearMailSettings(slipNumbers) {
+      const savedSettings = JSON.parse(localStorage.getItem('mail_settings') || '{}');
+      slipNumbers.forEach(slip => delete savedSettings[slip]);
+      localStorage.setItem('mail_settings', JSON.stringify(savedSettings));
+    }
+
+    // トースト表示
+    function showToast(message, type = 'info', duration = 5000) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast show ' + type;
+
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, duration);
+    }
+
+    function startFetch() {
+      document.getElementById('loading').classList.add('show');
+      document.getElementById('result').classList.remove('show');
+      document.getElementById('fetchBtn').disabled = true;
+
+      setTimeout(() => {
+        document.getElementById('loading').classList.remove('show');
+        document.getElementById('result').classList.add('show');
+        document.getElementById('fetchBtn').disabled = false;
+
+        // 取得後にlocalStorageの設定を再適用
+        loadMailSettings();
+
+        showToast('軽技Webから最新データを取得しました', 'success', 3000);
+      }, 2000);
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+      if (tab === 'invoice') {
+        document.querySelectorAll('.tab')[0].classList.add('active');
+        document.getElementById('invoice-tab').classList.add('active');
+      } else {
+        document.querySelectorAll('.tab')[1].classList.add('active');
+        document.getElementById('delivery-tab').classList.add('active');
+      }
+    }
+
+    function toggleSelectAll(type) {
+      const checkAll = document.getElementById('selectAll' + (type === 'invoice' ? 'Invoice' : 'Delivery'));
+      const checkboxes = document.querySelectorAll('.' + type + '-check');
+      checkboxes.forEach(cb => cb.checked = checkAll.checked);
+      updateSelectedCount(type);
+    }
+
+    function updateSelectedCount(type) {
+      const checkboxes = document.querySelectorAll('.' + type + '-check:checked');
+      document.getElementById(type + 'SelectedCount').textContent = checkboxes.length;
+    }
+
+    document.querySelectorAll('.invoice-check, .delivery-check').forEach(cb => {
+      cb.addEventListener('change', function() {
+        const type = this.classList.contains('invoice-check') ? 'invoice' : 'delivery';
+        updateSelectedCount(type);
+      });
+    });
+
+    function approve(type) {
+      const count = document.getElementById(type + 'SelectedCount').textContent;
+      if (count === '0') {
+        alert('確定する書類を選択してください');
+        return;
+      }
+      const typeName = type === 'invoice' ? '請求書' : '納品書';
+      if (confirm(count + '件の' + typeName + 'を確定しますか？\nPDFが生成され、明日10:00に処理されます。')) {
+        // 確定した伝票番号をlocalStorageから削除
+        const selectedRows = document.querySelectorAll('.' + type + '-check:checked');
+        const slipNumbers = [];
+        selectedRows.forEach(cb => {
+          const row = cb.closest('tr');
+          const slipNumber = row.cells[1].textContent;
+          slipNumbers.push(slipNumber);
+        });
+        clearMailSettings(slipNumbers);
+
+        showToast('確定しました。PDFを生成中です...', 'success');
+      }
+    }
+
+    // モーダル関連
+    function openDetail(slipNumber) {
+      document.getElementById('modal-slip-number').textContent = slipNumber;
+      document.getElementById('detailModal').classList.add('show');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeDetail() {
+      document.getElementById('detailModal').classList.remove('show');
+      document.body.style.overflow = '';
+    }
+
+    // モーダル外クリックで閉じる
+    document.getElementById('detailModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeDetail();
+      }
+    });
+
+    // ESCキーで閉じる
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeDetail();
+      }
+    });
+
+    // PDFダウンロード
+    function downloadPdf(slipNumber) {
+      alert('PDFをダウンロードします: ' + slipNumber + '.pdf');
+    }
+
+    // 処理予定の選択
+    function toggleSelectAllScheduled() {
+      const checkAll = document.getElementById('selectAllScheduled');
+      const checkboxes = document.querySelectorAll('.scheduled-check');
+      checkboxes.forEach(cb => cb.checked = checkAll.checked);
+      updateScheduledCount();
+    }
+
+    function updateScheduledCount() {
+      const checkboxes = document.querySelectorAll('.scheduled-check:checked');
+      document.getElementById('scheduledSelectedCount').textContent = checkboxes.length;
+    }
+
+    document.querySelectorAll('.scheduled-check').forEach(cb => {
+      cb.addEventListener('change', updateScheduledCount);
+    });
+
+    function cancelScheduled() {
+      const count = document.getElementById('scheduledSelectedCount').textContent;
+      if (count === '0') {
+        alert('確定を解除する書類を選択してください');
+        return;
+      }
+      if (confirm(count + '件の確定を解除しますか？')) {
+        // 確定解除後のメッセージを表示
+        showToast('確定を解除しました。確認待ちに表示するには「軽技Webから取得」を押してください', 'info', 8000);
+      }
+    }
+
+    // 営業担当フィルター
+    function filterBySales() {
+      const filterValue = document.getElementById('salesFilter').value;
+
+      const invoiceRows = document.querySelectorAll('#invoice-tab tbody tr');
+      invoiceRows.forEach(row => {
+        const salesCell = row.cells[3];
+        if (!filterValue || salesCell.textContent === filterValue) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      const deliveryRows = document.querySelectorAll('#delivery-tab tbody tr');
+      deliveryRows.forEach(row => {
+        const salesCell = row.cells[3];
+        if (!filterValue || salesCell.textContent === filterValue) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+
+      document.querySelectorAll('.invoice-check, .delivery-check').forEach(cb => cb.checked = false);
+      document.getElementById('selectAllInvoice').checked = false;
+      document.getElementById('selectAllDelivery').checked = false;
+      updateSelectedCount('invoice');
+      updateSelectedCount('delivery');
+    }
+  </script>
+</body>
+</html>

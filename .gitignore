@@ -1,0 +1,5 @@
+# Generated files
+*.pdf
+
+# Temporary files
+docs/temp_style.css
