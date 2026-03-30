@@ -1,5 +1,11 @@
 # Generated files
 *.pdf
+*.mp4
+*.mp3
+*.zip
+
+# Customer provided assets
+provided/
 
 # Temporary files
 docs/temp_style.css
