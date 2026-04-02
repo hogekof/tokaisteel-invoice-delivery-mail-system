@@ -128,8 +128,8 @@
       padding: 15px !important;
     }
 
-    /* 詳細ボタン */
-    .detail-btn {
+    /* 詳細・PDFボタン共通 */
+    .detail-btn, .preview-btn {
       background: #3498db;
       color: #fff;
       border: none;
@@ -137,8 +137,12 @@
       border-radius: 4px;
       cursor: pointer;
       font-size: 12px;
+      line-height: 1;
+      vertical-align: middle;
+      display: inline-block;
+      box-sizing: border-box;
     }
-    .detail-btn:hover {
+    .detail-btn:hover, .preview-btn:hover {
       background: #2980b9;
     }
 
@@ -170,25 +174,6 @@
       font-weight: bold;
     }
 
-    /* プレビューボタン（処理予定用） */
-    .preview-btn {
-      background: #3498db;
-      color: #fff;
-      border: none;
-      padding: 6px 14px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 12px;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-    }
-    .preview-btn:hover {
-      background: #2980b9;
-    }
-    .preview-btn::before {
-      content: "";
-    }
 
     /* フィルター */
     .filter-bar {
@@ -411,7 +396,7 @@
               <td>¥1,250,000</td>
               <td>3件</td>
               <td>2026/01/27</td>
-              <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-001')">詳細</button></td>
+              <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-001')">詳細</button> <button class="preview-btn" onclick="previewPdf('INV-2026-0127-001')">PDF</button></td>
             </tr>
             <tr>
               <td><input type="checkbox" class="pending-check" data-type="invoice"></td>
@@ -428,7 +413,7 @@
               <td>¥920,000</td>
               <td>2件</td>
               <td>2026/01/27</td>
-              <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-002')">詳細</button></td>
+              <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-002')">詳細</button> <button class="preview-btn" onclick="previewPdf('INV-2026-0127-002')">PDF</button></td>
             </tr>
             <tr>
               <td><input type="checkbox" class="pending-check" data-type="invoice"></td>
@@ -445,7 +430,7 @@
               <td>¥2,340,000</td>
               <td>2件</td>
               <td>2026/01/27</td>
-              <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-003')">詳細</button></td>
+              <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-003')">詳細</button> <button class="preview-btn" onclick="previewPdf('INV-2026-0127-003')">PDF</button></td>
             </tr>
             <tr>
               <td><input type="checkbox" class="pending-check" data-type="invoice"></td>
@@ -462,7 +447,7 @@
               <td>¥567,000</td>
               <td>1件</td>
               <td>2026/01/27</td>
-              <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-004')">詳細</button></td>
+              <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-004')">詳細</button> <button class="preview-btn" onclick="previewPdf('INV-2026-0127-004')">PDF</button></td>
             </tr>
             <tr>
               <td><input type="checkbox" class="pending-check" data-type="invoice"></td>
@@ -479,7 +464,7 @@
               <td>¥1,800,000</td>
               <td>4件</td>
               <td>2026/01/27</td>
-              <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-005')">詳細</button></td>
+              <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-005')">詳細</button> <button class="preview-btn" onclick="previewPdf('INV-2026-0127-005')">PDF</button></td>
             </tr>
             <tr>
               <td><input type="checkbox" class="pending-check" data-type="invoice"></td>
@@ -496,7 +481,7 @@
               <td>¥2,150,000</td>
               <td>5件</td>
               <td>2026/01/26</td>
-              <td><button class="detail-btn" onclick="openDetail('INV-2026-0126-008')">詳細</button></td>
+              <td><button class="detail-btn" onclick="openDetail('INV-2026-0126-008')">詳細</button> <button class="preview-btn" onclick="previewPdf('INV-2026-0126-008')">PDF</button></td>
             </tr>
           </tbody>
         </table>
@@ -535,7 +520,7 @@
               <td>¥450,000</td>
               <td>2件</td>
               <td>2026/01/27</td>
-              <td><button class="detail-btn" onclick="openDetail('DLV-2026-0127-001')">詳細</button></td>
+              <td><button class="detail-btn" onclick="openDetail('DLV-2026-0127-001')">詳細</button> <button class="preview-btn" onclick="previewPdf('DLV-2026-0127-001')">PDF</button></td>
             </tr>
             <tr>
               <td><input type="checkbox" class="pending-check" data-type="delivery"></td>
@@ -552,7 +537,7 @@
               <td>¥230,000</td>
               <td>1件</td>
               <td>2026/01/27</td>
-              <td><button class="detail-btn" onclick="openDetail('DLV-2026-0127-002')">詳細</button></td>
+              <td><button class="detail-btn" onclick="openDetail('DLV-2026-0127-002')">詳細</button> <button class="preview-btn" onclick="previewPdf('DLV-2026-0127-002')">PDF</button></td>
             </tr>
             <tr>
               <td><input type="checkbox" class="pending-check" data-type="delivery"></td>
@@ -569,7 +554,7 @@
               <td>¥780,000</td>
               <td>3件</td>
               <td>2026/01/27</td>
-              <td><button class="detail-btn" onclick="openDetail('DLV-2026-0127-003')">詳細</button></td>
+              <td><button class="detail-btn" onclick="openDetail('DLV-2026-0127-003')">詳細</button> <button class="preview-btn" onclick="previewPdf('DLV-2026-0127-003')">PDF</button></td>
             </tr>
           </tbody>
         </table>
@@ -619,7 +604,7 @@
               <th>送信</th>
               <th>金額</th>
               <th>確定日時</th>
-              <th>PDF</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="scheduled-tbody">
@@ -632,7 +617,7 @@
               <td><span class="status-on">ON</span></td>
               <td>¥980,000</td>
               <td>2026/01/26 16:00</td>
-              <td><button class="preview-btn" onclick="previewPdf('INV-2026-0126-001')">プレビュー</button></td>
+              <td><button class="preview-btn" onclick="previewPdf('INV-2026-0126-001')">PDF</button></td>
             </tr>
             <tr>
               <td><input type="checkbox" class="scheduled-check"></td>
@@ -643,7 +628,7 @@
               <td><span class="status-on">ON</span></td>
               <td>¥1,450,000</td>
               <td>2026/01/26 16:00</td>
-              <td><button class="preview-btn" onclick="previewPdf('INV-2026-0126-002')">プレビュー</button></td>
+              <td><button class="preview-btn" onclick="previewPdf('INV-2026-0126-002')">PDF</button></td>
             </tr>
             <tr>
               <td><input type="checkbox" class="scheduled-check"></td>
@@ -654,7 +639,7 @@
               <td><span class="status-on">ON</span></td>
               <td>¥320,000</td>
               <td>2026/01/26 16:00</td>
-              <td><button class="preview-btn" onclick="previewPdf('DLV-2026-0126-001')">プレビュー</button></td>
+              <td><button class="preview-btn" onclick="previewPdf('DLV-2026-0126-001')">PDF</button></td>
             </tr>
             <tr>
               <td><input type="checkbox" class="scheduled-check"></td>
@@ -665,7 +650,7 @@
               <td><span class="status-off">OFF</span></td>
               <td>¥1,200,000</td>
               <td>2026/01/26 16:00</td>
-              <td><button class="preview-btn" onclick="previewPdf('INV-2026-0126-003')">プレビュー</button></td>
+              <td><button class="preview-btn" onclick="previewPdf('INV-2026-0126-003')">PDF</button></td>
             </tr>
             <tr>
               <td><input type="checkbox" class="scheduled-check"></td>
@@ -676,7 +661,7 @@
               <td><span class="status-on">ON</span></td>
               <td>¥750,000</td>
               <td>2026/01/27 11:30</td>
-              <td><button class="preview-btn" onclick="previewPdf('INV-2026-0127-010')">プレビュー</button></td>
+              <td><button class="preview-btn" onclick="previewPdf('INV-2026-0127-010')">PDF</button></td>
             </tr>
           </tbody>
         </table>
@@ -736,7 +721,7 @@
               <th>送信結果</th>
               <th>金額</th>
               <th>処理日時</th>
-              <th>PDF</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -1033,7 +1018,7 @@
             <td><span class="status-${mailEnabled ? 'on' : 'off'}">${mailEnabled ? 'ON' : 'OFF'}</span></td>
             <td>${amount}</td>
             <td>${now}</td>
-            <td><button class="preview-btn" onclick="previewPdf('${slipNumber}')">プレビュー</button></td>
+            <td><button class="preview-btn" onclick="previewPdf('${slipNumber}')">PDF</button></td>
           `;
           scheduledTbody.appendChild(newRow);
 
@@ -1076,7 +1061,7 @@
 
     // PDFプレビュー（処理予定用）
     function previewPdf(slipNumber) {
-      alert('PDFプレビューを生成します: ' + slipNumber + '\n\n※送信時と同じ内容のPDFが表示されます（タイトルに「プレビュー」の文言が入ります）');
+      alert('【プレビュー】' + slipNumber + '\n\n送信時と同じ内容のPDFを別タブで表示します。\n※タイトルに「プレビュー」と記載されます。');
     }
 
     // PDFダウンロード（処理済み用）
