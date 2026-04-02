@@ -671,9 +671,14 @@
         <div class="selected-count">
           <span id="scheduledSelectedCount">0</span>件選択中
         </div>
-        <button class="btn btn-secondary" onclick="cancelScheduled()">
-          選択した書類の確定を解除
-        </button>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn btn-primary" onclick="refreshScheduled()">
+            更新
+          </button>
+          <button class="btn btn-secondary" onclick="cancelScheduled()">
+            選択した書類の確定を解除
+          </button>
+        </div>
       </div>
     </div>
 
@@ -1066,7 +1071,8 @@
 
     // PDFダウンロード（処理済み用）
     function downloadPdf(slipNumber) {
-      alert('PDFをダウンロードします: ' + slipNumber + '.pdf');
+      // 本番ではS3 Presigned URLからダウンロード開始
+      console.log('ダウンロード: ' + slipNumber + '.pdf');
     }
 
     // 処理予定の選択
@@ -1087,15 +1093,22 @@
     });
 
     function cancelScheduled() {
-      const count = document.getElementById('scheduledSelectedCount').textContent;
-      if (count === '0') {
+      const checked = document.querySelectorAll('.scheduled-check:checked');
+      if (checked.length === 0) {
         alert('確定を解除する書類を選択してください');
         return;
       }
-      if (confirm(count + '件の確定を解除しますか？')) {
-        // 確定解除後のメッセージを表示
+      if (confirm(checked.length + '件の確定を解除しますか？')) {
+        // 本番では対象が存在しない場合「既に送信処理されています。画面を更新してください」と表示
+        checked.forEach(cb => cb.closest('tr').remove());
+        updateScheduledCount();
         showToast('確定を解除しました。確認待ちに表示するには「軽技Webから再取得」を押してください', 'info', 8000);
       }
+    }
+
+    // 処理予定の更新ボタン
+    function refreshScheduled() {
+      showToast('処理予定を更新しました', 'success', 2000);
     }
 
     // 確認待ち営業担当フィルター（請求書・納品書両方に適用）
