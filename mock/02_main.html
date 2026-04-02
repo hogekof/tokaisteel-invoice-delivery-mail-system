@@ -305,8 +305,7 @@
   <nav class="nav">
     <div class="nav-brand">請求書・納品書メール送信システム</div>
     <div class="nav-right">
-      <span id="currentDepartment" style="margin-right: 15px; font-weight: bold;"></span>
-      <a href="01_select-department.html" style="color: #fff; text-decoration: underline;">部門を変更</a>
+      <span id="currentDepartment" style="font-weight: bold;"></span>
     </div>
   </nav>
 
@@ -741,20 +740,10 @@
       'D05': '大阪営業所'
     };
 
-    // ページ読み込み時に部門チェックとlocalStorage読み込み
+    // ページ読み込み時（部門固定: ADR-001）
     (function() {
-      const params = new URLSearchParams(window.location.search);
-      const deptCode = params.get('dept');
-      const deptName = DEPARTMENTS[deptCode];
-
-      if (!deptName) {
-        // 部門が指定されていない or 無効な場合は部門選択ページへ
-        window.location.href = '01_select-department.html';
-        return;
-      }
-      // 部門名を表示
+      const deptName = '営業1課';  // 部門固定
       document.getElementById('currentDepartment').textContent = deptName;
-      // タイトルに部門名を追加
       document.title = deptName + ' - 請求書・納品書メール送信システム';
 
       // localStorageから送信ON/OFF設定を復元
