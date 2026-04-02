@@ -115,6 +115,28 @@
   - 関心の分離: ルーティング、モデル、スキーマ、サービス、データベース
   - スクレイピング等の長時間処理はバックグラウンドタスクで実行
 
+### S3 + Athena構成（DynamoDB廃止）
+- **Context**: 電帳法の検索要件（金額範囲・取引先名の組み合わせ検索）をDynamoDBのGSIで実現することが困難であり、代替アーキテクチャを調査
+- **Sources Consulted**:
+  - [AWS Athena - Partition your data](https://docs.aws.amazon.com/athena/latest/ug/partitions.html)
+  - [Hive JSON SerDe - Amazon Athena](https://docs.aws.amazon.com/athena/latest/ug/hive-json-serde.html)
+  - [Amazon Athena Pricing](https://aws.amazon.com/athena/pricing/)
+  - [ListObjectsV2 - Boto3 Documentation](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3/paginator/ListObjectsV2.html)
+  - [Copying, moving, and renaming objects - Amazon S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/copy-object.html)
+- **Findings**:
+  - Athenaは$5/TBスキャンの従量課金。10MB最小課金/クエリ（$0.00005）で、小規模データでは実質無料レベル
+  - Hiveパーティション形式（`status=xxx/date=YYYY-MM-DD/`）でスキャン範囲を限定可能
+  - JSONファイルはorg.apache.hive.hcatalog.data.JsonSerDeで直接読み取り可能（Parquet変換不要）
+  - MSCK REPAIR TABLEでパーティションを自動検出、またはALTER TABLEで明示的に追加
+  - S3にはネイティブの「移動」操作がない。copy_object() + delete_object()の2ステップで実現
+  - copy_object()は5GBまでアトミックだが、全体の移動操作（コピー+削除）はアトミックではない
+  - boto3 Paginatorを使用すればListObjectsV2のページネーション（1回最大1000件）を透過的に処理可能
+- **Implications**:
+  - DynamoDBのGSIで困難だった柔軟な複合検索がAthenaの標準SQLで容易に実現可能
+  - ステータス変更（scheduled -> processed）はコピー先（processed）を先に作成し、削除を後にすることで安全性を確保
+  - 削除失敗時のorphanクリーンアップロジックが必要（scheduledとprocessedの両方に存在する場合はprocessedを優先）
+  - データ量が小さいためJSON直接読み取りで十分。将来データが大幅に増加した場合のみParquet変換を検討
+
 ## Architecture Pattern Evaluation
 
 | Option | Description | Strengths | Risks / Limitations | Notes |
@@ -145,22 +167,24 @@
   - 将来的に複雑なUIが必要になった場合は移行が必要
 - **Follow-up**: ユーザビリティテスト後に必要に応じてUI改善
 
-### Decision: データベース（RDS PostgreSQL選択）
-- **Context**: 売上明細データと承認状態を永続化するデータベースを選定
+### Decision: データストア（S3 JSON + Athena選択）
+- **Context**: 売上明細データの永続化と電帳法の検索要件を満たすストレージを選定
 - **Alternatives Considered**:
-  1. RDS PostgreSQL — 予測可能なワークロード向け、低コスト
-  2. Aurora Serverless v2 — 変動するワークロード向け、スケーラブル
-  3. DynamoDB — NoSQL、サーバーレス
-- **Selected Approach**: RDS PostgreSQL（t3.micro）
+  1. DynamoDB + GSI — NoSQL、サーバーレスだが柔軟な複合検索が困難
+  2. RDS PostgreSQL — リレーショナルDB、SQLで柔軟な検索が可能だがサーバー管理が必要
+  3. S3 JSON + Athena — サーバーレス、標準SQLで検索、完全従量課金
+- **Selected Approach**: S3 JSON + Athena
 - **Rationale**:
-  - 予測可能な低トラフィック（社内数名が利用）
-  - 無料枠が利用可能（12ヶ月間）
-  - リレーショナルデータ（請求書、納品書、承認状態）に適している
-  - PostgreSQLはJSON型もサポートし柔軟性がある
+  - DynamoDBのGSIでは金額範囲 + 取引先名の組み合わせ検索が困難
+  - S3 + AthenaならSQLで電帳法の全検索要件（日付範囲、金額範囲、取引先名、AND条件）を容易に満たせる
+  - 通常の画面表示はS3 ListObjectsV2で十分な性能（日次20-30件）
+  - サーバー管理不要、完全従量課金でコスト最小化
+  - Hiveパーティション形式でスキャン範囲を限定
 - **Trade-offs**:
-  - トラフィック急増時のスケーリングは手動対応が必要
-  - Aurora Serverlessのような自動スケーリングなし
-- **Follow-up**: 利用状況をモニタリングし、必要に応じてインスタンスサイズ変更
+  - S3にはアトミックな移動操作がない（コピー+削除の2ステップ）
+  - Athena検索はDynamoDBのGSI検索よりレイテンシが高い（数秒～十数秒）
+  - JSONフォーマットのため、データ量が大幅に増加した場合はParquet変換が必要になる可能性
+- **Follow-up**: Athena検索のレスポンス時間をモニタリング。10年分データが増加した場合のパフォーマンス検証
 
 ### Decision: PDF生成（WeasyPrint選択）
 - **Context**: 請求書・納品書PDFを生成する技術を選定
