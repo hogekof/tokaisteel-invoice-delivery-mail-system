@@ -193,22 +193,22 @@ sequenceDiagram
 
     Child->>S3: GET scheduled/INV-001.json
     S3-->>Child: JSONデータ
-    Child->>Child: send_resultが未設定か確認
-    alt send_result設定済み（orphan）
+    Child->>Child: 処理済みか確認（送信ON: sent_at、送信OFF: processed_at）
+    alt 処理済み（orphan）
         Child->>S3: PUT processed/date=YYYY-MM-DD/ にコピー
         Child->>S3: DELETE scheduled/ から削除
-    else send_result未設定
+    else 未処理
         Child->>Child: PDF生成（正式版）
         Child->>S3: PDF保存
         Child->>Child: メール送信（送信ONのみ）
-        Child->>S3: PUT scheduled/INV-001.json（send_result, sent_at書き込み）
+        Child->>S3: PUT scheduled/INV-001.json（processed_at, sent_at書き込み）
         S3-->>Child: 書き込み完了
         Child->>S3: PUT processed/date=YYYY-MM-DD/INV-001.json
         Child->>S3: DELETE scheduled/INV-001.json
     end
 
-    Note over Child: PDF生成→送信→send_result書き込み→コピー→削除の順
-    Note over Child: send_result設定済みなら送信スキップ（二重送信防止）
+    Note over Child: PDF生成→送信→processed_at書き込み→コピー→削除の順
+    Note over Child: 送信ON: sent_atで判定、送信OFF: processed_atで判定（二重送信防止）
     Note over Child: 削除失敗時は次回バッチで掃除
     Note over Child: 両方に存在する場合はprocessedを優先表示
 ```
@@ -236,22 +236,22 @@ sequenceDiagram
 
     Child->>S3Docs: GET scheduled/{slip_number}.json
     S3Docs-->>Child: JSONデータ
-    Child->>Child: send_resultが未設定か確認
-    alt send_result設定済み（orphan）
+    Child->>Child: 処理済みか確認（送信ON: sent_at、送信OFF: processed_at）
+    alt 処理済み（orphan）
         Child->>S3Docs: PUT processed/date=YYYY-MM-DD/ にコピー
         Child->>S3Docs: DELETE scheduled/ から削除
-    else send_result未設定 かつ 送信ON
+    else 未処理 かつ 送信ON
         Child->>Child: PDF生成（正式版）
         Child->>S3Pdf: PDF保存
         Child->>SG: メール送信 PDF添付
         SG-->>Child: 送信結果
-        Child->>S3Docs: PUT scheduled/ にsend_result,sent_at書き込み
+        Child->>S3Docs: PUT scheduled/ にprocessed_at,sent_at書き込み
         Child->>S3Docs: PUT processed/date=YYYY-MM-DD/ にコピー（送信済み）
         Child->>S3Docs: DELETE scheduled/ から削除
-    else send_result未設定 かつ 送信OFF
+    else 未処理 かつ 送信OFF
         Child->>Child: PDF生成（正式版）
         Child->>S3Pdf: PDF保存
-        Child->>S3Docs: PUT scheduled/ にsend_result書き込み
+        Child->>S3Docs: PUT scheduled/ にprocessed_at書き込み
         Child->>S3Docs: PUT processed/date=YYYY-MM-DD/ にコピー（送信なし）
         Child->>S3Docs: DELETE scheduled/ から削除
     end
@@ -414,7 +414,7 @@ class ScrapingService:
 - ScrapingServiceを呼び出してCSVデータと得意先送信設定を取得
 - CSVを解析し請求書データと納品書データに分類
 - 備考2から取得した送信可否デフォルト値を各書類に適用（請求書・納品書それぞれ個別）
-- S3上の処理予定（`status=scheduled/`）/処理済み（`status=processed/`）に存在する伝票番号を確認待ち一覧から除外
+- 既存伝票番号キャッシュ（`existing_slip_numbers.json`）に存在する伝票番号を確認待ち一覧から除外
 - 確認待ちデータをメモリ上で保持（S3には保存しない）
 - 処理状態をフロントエンドに通知
 
@@ -494,8 +494,8 @@ class DataFetchService:
 - 処理予定の書類一覧を提供（S3 `status=scheduled/` からListObjectsで取得）
 - 処理済みの書類一覧を提供（S3 `status=processed/date=YYYY-MM-DD/` を7日分ListObjectsで取得）
 - 確認待ち一覧はDataFetchServiceから取得（メモリ上のデータ）
-- 確定時にデータをスナップショットとしてS3にJSONファイルで保存し、PDF生成をトリガー
-- 確定解除でS3からJSONファイルを削除（次回取得時に確認待ちに再表示される）
+- 確定時にデータをスナップショットとしてS3にJSONファイルで保存し、既存伝票番号キャッシュに追記
+- 確定解除でS3からJSONファイルを削除し、既存伝票番号キャッシュから削除（次回取得時に確認待ちに再表示される）
 
 **Dependencies**
 - Inbound: Dash UI -- 書類操作リクエスト (P0)
@@ -601,7 +601,7 @@ class DocumentService:
         - 書類データがS3 status=scheduled/{slip_number}.json に保存される
         - mail_settingsの値がmail_enabledに反映される
         - ステータスがSCHEDULEDに設定される
-        - PDF生成がトリガーされる
+        - 既存伝票番号キャッシュ（existing_slip_numbers.json）に追記される
         """
         ...
 
@@ -615,6 +615,7 @@ class DocumentService:
 
         Postconditions:
         - S3 status=scheduled/ から該当JSONファイルを削除
+        - 既存伝票番号キャッシュ（existing_slip_numbers.json）から削除される
         - 次回データ取得時に確認待ちに再表示される
 
         Returns:
@@ -683,7 +684,7 @@ class PdfSearchResult(BaseModel):
     customer_name: str
     amount: Decimal
     processed_at: datetime
-    send_result: str  # "送信済み" or "送信なし"
+    sent_at: Optional[datetime]  # 送信ONの場合のみ設定。nullなら送信なし
     pdf_download_url: Optional[str]
 
 class PdfSearchService:
@@ -838,9 +839,9 @@ class PdfGenerationService:
 
 **Responsibilities & Constraints**
 - 親LambdaからInvokeされ、1件の書類（slip_number）を処理
-- send_result設定済みならorphanクリーンアップ（コピー+削除のみ）
-- 送信ONの書類: PDF生成→EmailServiceでメール送信→send_result書き込み→processedにコピー→scheduledから削除
-- 送信OFFの書類: PDF生成→send_result書き込み→processedにコピー→scheduledから削除
+- 処理済み判定（送信ON: sent_at、送信OFF: processed_at）ならorphanクリーンアップ（コピー+削除のみ）
+- 送信ONの書類: PDF生成→メール送信→processed_at,sent_at書き込み→processedにコピー→scheduledから削除
+- 送信OFFの書類: PDF生成→processed_at書き込み→processedにコピー→scheduledから削除
 - エラー時のみ担当営業にメール通知
 - 送信専用アドレスを使用（全社共通の1アドレス）
 - 1件あたり数十秒で完了（15分制限に余裕）
@@ -860,9 +861,9 @@ class PdfGenerationService:
 - Input / validation: slip_number（S3キーの一部）
 - Output / destination: SendGrid経由でメール送信（送信ONのみ）、S3 `status=processed/` にコピー後 `status=scheduled/` から削除
 - Idempotency & recovery:
-  - scheduled側JSONのsend_resultが設定済みなら送信スキップ（二重送信防止）
-  - 手順: ①PDF生成 ②送信 ③send_result書き込み ④processedにコピー ⑤scheduledから削除
-  - 削除失敗時は次回バッチでsend_result設定済みのorphanをコピー+削除（クリーンアップ）
+  - scheduled側JSONで処理済み判定（送信ON: sent_at、送信OFF: processed_at）なら送信スキップ（二重送信防止）
+  - 手順: ①PDF生成 ②送信 ③processed_at(+sent_at)書き込み ④processedにコピー ⑤scheduledから削除
+  - 削除失敗時は次回バッチで処理済みのorphanをコピー+削除（クリーンアップ）
   - scheduledとprocessedの両方に存在する場合はprocessedを優先表示
   - 最大リトライ回数: 3回
   - リトライ間隔: 指数バックオフ
@@ -889,7 +890,8 @@ class BatchOrchestratorService:
 # 子Lambda（1件処理）
 class ProcessSingleResult(BaseModel):
     slip_number: str
-    send_result: Optional[str]  # "sent", "not_sent", or None (failure)
+    sent_at: Optional[datetime]  # 送信ONの場合のみ設定
+    processed_at: Optional[datetime]  # 処理日時（orphan検出用）
     error_message: Optional[str]
 
 class BatchProcessSingleService:
@@ -899,10 +901,10 @@ class BatchProcessSingleService:
 
         手順:
         1. scheduled/{slip_number}.json を読み取り
-        2. send_result設定済みならorphanクリーンアップ（コピー+削除のみ）
+        2. 処理済み判定（送信ON: sent_at、送信OFF: processed_at）ならorphanクリーンアップ（コピー+削除のみ）
         3. PDF生成（正式版、S3に保存）
         4. 送信ONならメール送信
-        5. send_result（+ 送信ONならsent_at）をscheduled側JSONに書き込み
+        5. processed_at（+ 送信ONならsent_at）をscheduled側JSONに書き込み
         6. processed/date=YYYY-MM-DD/ にコピー
         7. scheduled/ から削除
         8. 失敗時はエラーログ記録、担当営業にメール通知
@@ -1009,8 +1011,8 @@ class EmailService:
   - `documents/status=processed/date=YYYY-MM-DD/{slip_number}.json`（送信日、ListObjectsで日付絞り込み用）
 - 処理予定一覧: `status=scheduled/` をListObjectsV2で全件取得
 - 処理済み一覧（過去1週間）: `status=processed/date=YYYY-MM-DD/` を7日分ListObjectsV2で取得
-- ステータス変更手順: ①PDF生成 ②送信 ③send_resultをscheduled側JSONに書き込み ④processed側にコピー ⑤scheduled側を削除
-- 二重送信防止: scheduled側JSONのsend_resultで判断（processed側の確認不要）
+- ステータス変更手順: ①PDF生成 ②送信 ③processed_at(+sent_at)をscheduled側JSONに書き込み ④processed側にコピー ⑤scheduled側を削除
+- 二重送信防止: scheduled側JSONのprocessed_atで判断（processed側の確認不要）
 - 同じ伝票番号がscheduledとprocessedの両方に存在する場合はprocessedを優先表示
 - 削除失敗時は次回バッチで掃除
 
@@ -1069,7 +1071,7 @@ class DocumentStorage:
         """
         処理予定一覧を取得
         status=scheduled/ の全JSONを取得し、中身を読み取って返す
-        send_resultが設定済みのものはprocessed優先表示のため除外
+        処理済み（送信ON: sent_at設定済み、送信OFF: processed_at設定済み）のものはprocessed優先表示のため除外
         """
         ...
 
@@ -1085,21 +1087,38 @@ class DocumentStorage:
 
     async def get_existing_slip_numbers(self) -> set[str]:
         """
-        処理予定/処理済みの全伝票番号を取得（確認待ち除外用）
-        scheduled/ と processed/ の両方をListObjectsV2でキー一覧取得
-        キーからslip_numberを抽出（JSONの中身は読まない）
+        既存伝票番号キャッシュから全伝票番号を取得（確認待ち除外用）
+
+        キャッシュファイル: documents/existing_slip_numbers.json
+        - 確定時に追記、確定解除時に削除される
+        - scheduled/processed両方の伝票番号が含まれる
+        - キャッシュ1つで完結するため、ListObjectsは不要
+        """
+        ...
+
+    async def add_to_slip_number_cache(self, slip_number: str) -> None:
+        """
+        既存伝票番号キャッシュに追記する（確定時に呼び出す）
+
+        キャッシュファイル: documents/existing_slip_numbers.json
+        形式: {"slip_numbers": ["INV-001", "DLV-001", ...]}
+        """
+        ...
+
+    async def remove_from_slip_number_cache(self, slip_number: str) -> None:
+        """
+        既存伝票番号キャッシュから削除する（確定解除時に呼び出す）
         """
         ...
 
     async def mark_as_processed(
         self,
         slip_number: str,
-        send_result: str,
         sent_at: Optional[datetime] = None
     ) -> bool:
         """
-        scheduled側のJSONにsend_resultを書き込む（処理済みの証拠）
-        send_result: "sent" or "not_sent"
+        scheduled側のJSONにprocessed_atを書き込む（処理済みの証拠）
+        送信ONの場合はsent_atも同時に書き込む
         sent_at: 送信ONの場合のみ設定
         processedへのコピー前に実行する
         """
@@ -1133,7 +1152,7 @@ class DocumentStorage:
     async def cleanup_orphans(self) -> int:
         """
         orphanクリーンアップ:
-        scheduled側でsend_resultが設定済みのファイルについて、
+        scheduled側で処理済み（送信ON: sent_at設定済み、送信OFF: processed_at設定済み）のファイルについて、
         processedへのコピー+scheduled側の削除を再試行する
 
         Returns: 掃除した件数
@@ -1147,7 +1166,7 @@ class DocumentStorage:
     ) -> bool:
         """
         scheduled側のJSONを読み取り、フィールドを更新して書き戻す
-        （バッチ送信時のsend_result, sent_at, pdf_path書き込み等に使用）
+        （バッチ送信時のprocessed_at, sent_at, pdf_path書き込み等に使用）
         """
         ...
 ```
@@ -1305,7 +1324,7 @@ erDiagram
 - **確認待ち**: 軽技Webから毎回取得、S3には保存しない（古いデータによる誤送信防止）
 - **確定時**: データをスナップショットとしてS3にJSONファイルで保存（処理予定ステータス）、localStorageの送信ON/OFF設定を反映
 - ステータス遷移（S3保存後）: SCHEDULED -> SENT/NOT_SENT（PDF生成はバッチ送信時に実施、ADR-006）
-- ステータス変更時のS3操作: ①PDF生成 ②送信 ③send_result書き込み ④processedにコピー ⑤scheduledから削除
+- ステータス変更時のS3操作: ①PDF生成 ②送信 ③processed_at(+sent_at)書き込み ④processedにコピー ⑤scheduledから削除
 - 同じ伝票番号がscheduledとprocessedの両方に存在する場合はprocessedを優先
 - 確定解除: S3からJSONファイル削除（次回取得時に確認待ちに再表示）
 - mail_enabledがfalseの書類はメール送信されないがステータスはNOT_SENTに更新
@@ -1321,7 +1340,7 @@ erDiagram
 
 **Consistency & Integrity**:
 - ステータス変更はS3 Copy + Deleteで実装（アトミックではない）
-- PDF生成→送信→send_result書き込み→コピー→削除の順。send_result設定済みなら送信スキップで二重送信防止（結果整合性）
+- PDF生成→送信→processed_at(+sent_at)書き込み→コピー→削除の順。処理済み判定（送信ON: sent_at、送信OFF: processed_at）なら送信スキップで二重送信防止（結果整合性）
 - scheduledとprocessedの両方に存在する場合はprocessedを優先表示（画面側のロジック）
 
 ### Physical Data Model
@@ -1370,7 +1389,6 @@ erDiagram
   "confirmed_at": "2026-01-27T14:30:00+09:00",
   "sent_at": null,
   "processed_at": null,
-  "send_result": null,
   "line_items": [
     {
       "line_no": 1,
@@ -1392,7 +1410,7 @@ erDiagram
 |-------------|------|-----------------|------|
 | 処理予定一覧 | S3 ListObjectsV2 | `documents/status=scheduled/` | 全件取得、JSONの中身を読み取り |
 | 処理済み一覧（過去1週間） | S3 ListObjectsV2 x 7日分 | `documents/status=processed/date=YYYY-MM-DD/` | 日付ごとにListObjects |
-| 既存伝票番号取得（除外用） | S3 ListObjectsV2 | `documents/status=scheduled/` + `documents/status=processed/` | キーのみ取得（JSONの中身は読まない） |
+| 既存伝票番号取得（除外用） | S3 GetObject | `documents/existing_slip_numbers.json` | キャッシュ1ファイルで完結。確定時に追記、確定解除時に削除 |
 | 電帳法検索（10年分） | Athena SQL | `documents/status=processed/` | 日付・金額・取引先名のAND条件 |
 
 #### Athenaテーブル定義
@@ -1412,8 +1430,7 @@ CREATE EXTERNAL TABLE documents (
     pdf_path string,
     fetched_at string,
     confirmed_at string,
-    processed_at string,
-    send_result string
+    processed_at string
 )
 PARTITIONED BY (
     `status` string,
@@ -1437,7 +1454,7 @@ ALTER TABLE documents ADD PARTITION (status='processed', date='2026-03-30')
 ```sql
 -- 日付範囲 + 金額範囲 + 取引先名 のAND検索
 SELECT slip_number, document_type, customer_name, amount,
-       processed_at, send_result, pdf_path
+       processed_at, sent_at, pdf_path
 FROM documents
 WHERE status = 'processed'
   AND date BETWEEN '2025-01-01' AND '2026-03-30'

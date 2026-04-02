@@ -201,20 +201,26 @@ documents/status=processed/date=YYYY-MM-DD/{slip_number}.json  ← 送信日
 - dateがないと10年分の全ファイルを取得する必要があり、Athenaが必須になる
 - processed側のdateは送信日で確定しており、後からずれることがない
 
-**なぜscheduled側のsend_resultで二重送信を防止するか**:
+**なぜscheduled側のsent_at/processed_atで二重送信を防止するか**:
 - 二重送信防止のためにprocessed側を確認する方法も検討したが、processed側にはdateがあるため、どのdateフォルダに入っているか特定できない問題がある
-- scheduled側のJSON自体に`send_result`を書き込む方式であれば、processed側を一切見に行く必要がない
+- scheduled側のJSON自体に`sent_at`を書き込む方式であれば、processed側を一切見に行く必要がない
+- 送信ONの場合は`sent_at`で送信済みを判定（将来的にprocessed_atとタイミングが分離しても安全）
+- 送信OFFの場合は`processed_at`で処理済みを判定（メール送信しないのでsent_atはnull）
 - scheduled側のJSONは処理予定一覧の表示で既に読み込んでいるため、追加のAPI呼び出しも不要
+- `send_result`フィールドは不要。代わりに`processed_at`と`sent_at`の2フィールドで管理:
+  - `processed_at`: バッチ処理した時刻（ON/OFF両方で設定）。orphan検出にも使用
+  - `sent_at`: メール送信した時刻（送信ONのみ設定）。送信済みかどうかの判定に使用
+  - 現在の仕様では同一タイミングで1回のPUTで同時書き込み。将来的に送信後の追加処理が発生した場合に分離可能な設計
 
 **バッチ送信の手順**:
 1. PDF生成（正式版、S3に保存）
 2. メール送信を実行（送信ONのみ。送信OFFはスキップ）
-3. scheduled側のJSONに`send_result`（と送信ONの場合は`sent_at`）を書き込む（PUT上書き）— これが処理済みの証拠
+3. scheduled側のJSONに`processed_at`（と送信ONの場合は`sent_at`）を書き込む（PUT上書き）— これが処理済みの証拠
 4. processed側にコピー
 5. scheduled側を削除
 
 **二重メール送信の防止**:
-- 次回バッチでscheduled側のJSONを読み、`send_result`が既に設定されていれば処理済みと判断
+- 次回バッチでscheduled側のJSONを読み、`processed_at`が既に設定されていれば処理済みと判断
 - 送信をスキップし、コピー+削除のリカバリのみ実行
 - processed側を検索する必要はない（scheduledのJSON内で完結）
 
@@ -222,10 +228,10 @@ documents/status=processed/date=YYYY-MM-DD/{slip_number}.json  ← 送信日
 
 | クラッシュタイミング | scheduled | processed | 次回バッチの動作 |
 |---|---|---|---|
-| 1の後（PDF生成後、送信前） | send_resultなし | なし | PDF再生成→再送信 |
-| 2の後（送信後、書き込み前） | send_resultなし | なし | PDF再生成→再送信（※） |
-| 3の後（書き込み後、コピー前） | send_resultあり | なし | 送信スキップ、コピー+削除 |
-| 4の後（コピー後、削除前） | send_resultあり | あり | 送信スキップ、削除のみ |
+| 1の後（PDF生成後、送信前） | sent_at/processed_atなし | なし | PDF再生成→再送信 |
+| 2の後（送信後、書き込み前） | sent_at/processed_atなし | なし | PDF再生成→再送信（※） |
+| 3の後（書き込み後、コピー前） | sent_at/processed_atあり | なし | 送信スキップ、コピー+削除 |
+| 4の後（コピー後、削除前） | sent_at/processed_atあり | あり | 送信スキップ、削除のみ |
 
 ※メール送信直後・JSON書き込み前のクラッシュによる再送信は、どのデータストア（DynamoDB、RDS等）を使っても原理的に防げない（分散トランザクションの限界）。発生確率は極めて低く、許容する。
 ※PDF再生成は冪等（同じデータから同じPDFが生成される）なので問題ない。
@@ -261,7 +267,7 @@ documents/status=processed/date=YYYY-MM-DD/{slip_number}.json  ← 送信日
 ### 決定
 - バッチ処理を親Lambda（オーケストレーター）と子Lambda（1件処理）に分離する
 - 親Lambda: EventBridgeトリガー（1時間ごと）で起動。`scheduled/`をListObjectsし、1件ずつ子Lambdaを非同期Invokeする
-- 子Lambda: 1件の書類に対してPDF生成→送信→send_result書き込み→processedにコピー→scheduled削除を実行
+- 子Lambda: 1件の書類に対してPDF生成→送信→processed_at書き込み→processedにコピー→scheduled削除を実行
 
 ### 理由
 - 1件あたり数十秒で完了するため、15分制限に余裕がある
