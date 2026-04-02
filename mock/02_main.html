@@ -149,7 +149,7 @@
       margin-left: 5px;
     }
 
-    /* ダウンロードボタン */
+    /* ダウンロードボタン（処理済み用） */
     .download-btn {
       background: #27ae60;
       color: #fff;
@@ -170,19 +170,24 @@
       font-weight: bold;
     }
 
-    /* 生成中バッジ */
-    .generating-badge {
-      display: inline-block;
-      padding: 6px 12px;
-      background: #fff3cd;
-      color: #856404;
+    /* プレビューボタン（処理予定用） */
+    .preview-btn {
+      background: #3498db;
+      color: #fff;
+      border: none;
+      padding: 6px 14px;
       border-radius: 4px;
+      cursor: pointer;
       font-size: 12px;
-      animation: pulse 1.5s infinite;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
     }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
+    .preview-btn:hover {
+      background: #2980b9;
+    }
+    .preview-btn::before {
+      content: "👁";
     }
 
     /* フィルター */
@@ -613,7 +618,7 @@
 
     <!-- 処理予定一覧 -->
     <div class="card">
-      <div class="card-header">処理予定（明日10:00処理）</div>
+      <div class="card-header">処理予定（次回の定時処理で送信）</div>
 
       <div class="table-container">
         <table>
@@ -640,7 +645,7 @@
               <td><span class="status-on">ON</span></td>
               <td>¥980,000</td>
               <td>2026/01/26 16:00</td>
-              <td><button class="download-btn" onclick="downloadPdf('INV-2026-0126-001')">ダウンロード</button></td>
+              <td><button class="preview-btn" onclick="previewPdf('INV-2026-0126-001')">プレビュー</button></td>
             </tr>
             <tr>
               <td><input type="checkbox" class="scheduled-check"></td>
@@ -651,7 +656,7 @@
               <td><span class="status-on">ON</span></td>
               <td>¥1,450,000</td>
               <td>2026/01/26 16:00</td>
-              <td><button class="download-btn" onclick="downloadPdf('INV-2026-0126-002')">ダウンロード</button></td>
+              <td><button class="preview-btn" onclick="previewPdf('INV-2026-0126-002')">プレビュー</button></td>
             </tr>
             <tr>
               <td><input type="checkbox" class="scheduled-check"></td>
@@ -662,7 +667,7 @@
               <td><span class="status-on">ON</span></td>
               <td>¥320,000</td>
               <td>2026/01/26 16:00</td>
-              <td><button class="download-btn" onclick="downloadPdf('DLV-2026-0126-001')">ダウンロード</button></td>
+              <td><button class="preview-btn" onclick="previewPdf('DLV-2026-0126-001')">プレビュー</button></td>
             </tr>
             <tr>
               <td><input type="checkbox" class="scheduled-check"></td>
@@ -673,7 +678,7 @@
               <td><span class="status-off">OFF</span></td>
               <td>¥1,200,000</td>
               <td>2026/01/26 16:00</td>
-              <td><button class="download-btn" onclick="downloadPdf('INV-2026-0126-003')">ダウンロード</button></td>
+              <td><button class="preview-btn" onclick="previewPdf('INV-2026-0126-003')">プレビュー</button></td>
             </tr>
             <tr>
               <td><input type="checkbox" class="scheduled-check"></td>
@@ -684,7 +689,7 @@
               <td><span class="status-on">ON</span></td>
               <td>¥750,000</td>
               <td>2026/01/27 11:30</td>
-              <td><span class="generating-badge">生成中...</span></td>
+              <td><button class="preview-btn" onclick="previewPdf('INV-2026-0127-010')">プレビュー</button></td>
             </tr>
           </tbody>
         </table>
@@ -1000,7 +1005,7 @@
         return;
       }
       const typeName = type === 'invoice' ? '請求書' : '納品書';
-      if (confirm(count + '件の' + typeName + 'を確定しますか？\nPDFが生成され、明日10:00に処理されます。')) {
+      if (confirm(count + '件の' + typeName + 'を確定しますか？\n次回の定時処理で送信されます。')) {
         // 確定した伝票番号をlocalStorageから削除
         const selectedRows = document.querySelectorAll('.' + type + '-check:checked');
         const slipNumbers = [];
@@ -1041,7 +1046,12 @@
       }
     });
 
-    // PDFダウンロード
+    // PDFプレビュー（処理予定用）
+    function previewPdf(slipNumber) {
+      alert('PDFプレビューを生成します: ' + slipNumber + '\n\n※送信時と同じ内容のPDFが表示されます（タイトルに「プレビュー」の文言が入ります）');
+    }
+
+    // PDFダウンロード（処理済み用）
     function downloadPdf(slipNumber) {
       alert('PDFをダウンロードします: ' + slipNumber + '.pdf');
     }
