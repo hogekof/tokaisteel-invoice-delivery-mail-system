@@ -187,7 +187,7 @@
       background: #2980b9;
     }
     .preview-btn::before {
-      content: "👁";
+      content: "";
     }
 
     /* フィルター */
@@ -618,7 +618,20 @@
 
     <!-- 処理予定一覧 -->
     <div class="card">
-      <div class="card-header">処理予定（次回の定時処理で送信）</div>
+      <div class="card-header">処理予定（1時間ごとに自動送信）</div>
+
+      <div class="filter-bar">
+        <div class="filter-group">
+          <label for="scheduledSalesFilter">営業担当:</label>
+          <select id="scheduledSalesFilter" class="filter-select" onchange="filterScheduledBySales()">
+            <option value="">全員</option>
+            <option value="田中 太郎">田中 太郎</option>
+            <option value="鈴木 一郎">鈴木 一郎</option>
+            <option value="佐藤 花子">佐藤 花子</option>
+            <option value="山田 次郎">山田 次郎</option>
+          </select>
+        </div>
+      </div>
 
       <div class="table-container">
         <table>
@@ -631,7 +644,7 @@
               <th>営業担当</th>
               <th>送信</th>
               <th>金額</th>
-              <th>確定日</th>
+              <th>確定日時</th>
               <th>PDF</th>
             </tr>
           </thead>
@@ -707,10 +720,39 @@
 
     <!-- 処理済み一覧（1週間分） -->
     <div class="card">
-      <div class="card-header">処理済み（過去1週間）</div>
+      <div class="card-header">処理済み</div>
+
+      <div class="filter-bar" style="flex-wrap: wrap;">
+        <div class="filter-group">
+          <label for="processedDateFrom">期間:</label>
+          <input type="date" id="processedDateFrom" class="filter-select" style="min-width: 140px;" onchange="filterProcessed()">
+          <span>〜</span>
+          <input type="date" id="processedDateTo" class="filter-select" style="min-width: 140px;" onchange="filterProcessed()">
+        </div>
+        <div class="filter-group">
+          <label for="processedCustomerFilter">取引先:</label>
+          <input type="text" id="processedCustomerFilter" class="filter-select" placeholder="取引先名で検索" style="min-width: 180px;" oninput="filterProcessed()">
+        </div>
+        <div class="filter-group">
+          <label for="processedAmountFrom">金額:</label>
+          <input type="number" id="processedAmountFrom" class="filter-select" placeholder="下限" style="min-width: 110px; text-align: right;" oninput="filterProcessed()">
+          <span>〜</span>
+          <input type="number" id="processedAmountTo" class="filter-select" placeholder="上限" style="min-width: 110px; text-align: right;" oninput="filterProcessed()">
+        </div>
+        <div class="filter-group">
+          <label for="processedSalesFilter">営業担当:</label>
+          <select id="processedSalesFilter" class="filter-select" onchange="filterProcessed()">
+            <option value="">全員</option>
+            <option value="田中 太郎">田中 太郎</option>
+            <option value="鈴木 一郎">鈴木 一郎</option>
+            <option value="佐藤 花子">佐藤 花子</option>
+            <option value="山田 次郎">山田 次郎</option>
+          </select>
+        </div>
+      </div>
 
       <div class="table-container">
-        <table>
+        <table id="processed-table">
           <thead>
             <tr>
               <th>種別</th>
@@ -1115,6 +1157,67 @@
       updateSelectedCount('invoice');
       updateSelectedCount('delivery');
     }
+
+    // 処理予定フィルター
+    function filterScheduledBySales() {
+      const filterValue = document.getElementById('scheduledSalesFilter').value;
+      const rows = document.querySelectorAll('.scheduled-check');
+      rows.forEach(cb => {
+        const row = cb.closest('tr');
+        const salesCell = row.cells[4];
+        if (!filterValue || salesCell.textContent === filterValue) {
+          row.style.display = '';
+        } else {
+          row.style.display = 'none';
+        }
+      });
+      document.querySelectorAll('.scheduled-check').forEach(cb => cb.checked = false);
+      document.getElementById('selectAllScheduled').checked = false;
+      updateScheduledCount();
+    }
+
+    // 処理済みフィルター（電帳法対応: 日付・金額・取引先・営業担当）
+    function filterProcessed() {
+      const dateFrom = document.getElementById('processedDateFrom').value;
+      const dateTo = document.getElementById('processedDateTo').value;
+      const salesFilter = document.getElementById('processedSalesFilter').value;
+      const customerFilter = document.getElementById('processedCustomerFilter').value.trim();
+      const amountFrom = document.getElementById('processedAmountFrom').value;
+      const amountTo = document.getElementById('processedAmountTo').value;
+
+      const rows = document.querySelectorAll('#processed-table tbody tr');
+      rows.forEach(row => {
+        const customerName = row.cells[2].textContent;
+        const salesPerson = row.cells[3].textContent;
+        const amountText = row.cells[5].textContent.replace(/[¥,]/g, '');
+        const amount = parseInt(amountText) || 0;
+        const dateText = row.cells[6].textContent.split(' ')[0].replace(/\//g, '-');
+
+        let show = true;
+
+        if (dateFrom && dateText < dateFrom) show = false;
+        if (dateTo && dateText > dateTo) show = false;
+        if (salesFilter && salesPerson !== salesFilter) show = false;
+        if (customerFilter && !customerName.includes(customerFilter)) show = false;
+        if (amountFrom && amount < parseInt(amountFrom)) show = false;
+        if (amountTo && amount > parseInt(amountTo)) show = false;
+
+        row.style.display = show ? '' : 'none';
+      });
+    }
+
+    // 処理済みの日付フィルターにデフォルト値（過去1週間）を設定し、フィルターを実行
+    (function initProcessedDateFilter() {
+      // モックデータに合わせて2026/01/27基準にする（本番ではnew Date()を使用）
+      const today = new Date('2026-01-27');
+      const weekAgo = new Date(today);
+      weekAgo.setDate(today.getDate() - 7);
+
+      const formatDate = (d) => d.toISOString().split('T')[0];
+      document.getElementById('processedDateTo').value = formatDate(today);
+      document.getElementById('processedDateFrom').value = formatDate(weekAgo);
+      filterProcessed();
+    })();
   </script>
 </body>
 </html>
