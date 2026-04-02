@@ -320,11 +320,11 @@
     <div class="status-counts">
       <div class="status-count">
         <div class="label">請求書（確認待ち）</div>
-        <div class="value" style="color: #f39c12;">8</div>
+        <div class="value" style="color: #f39c12;" id="status-invoice-count">0</div>
       </div>
       <div class="status-count">
         <div class="label">納品書（確認待ち）</div>
-        <div class="value" style="color: #f39c12;">5</div>
+        <div class="value" style="color: #f39c12;" id="status-delivery-count">0</div>
       </div>
       <div class="status-count">
         <div class="label">処理予定</div>
@@ -364,8 +364,8 @@
       </div>
 
       <!-- 請求書一覧 -->
-      <h4 style="margin: 15px 15px 5px; color: #2c3e50;">請求書 <span class="badge badge-warning">6</span></h4>
-      <div class="table-container">
+      <h4 style="margin: 15px 15px 5px; color: #2c3e50;">請求書 <span class="badge badge-warning" id="invoice-count">0</span></h4>
+      <div class="table-container scrollable">
         <table>
           <thead>
             <tr>
@@ -381,115 +381,14 @@
             </tr>
           </thead>
           <tbody id="invoice-tbody">
-            <tr>
-              <td><input type="checkbox" class="pending-check" data-type="invoice"></td>
-              <td>INV-2026-0127-001</td>
-              <td>株式会社サンプル工業</td>
-              <td>田中 太郎</td>
-              <td>
-                <label class="toggle">
-                  <input type="checkbox" checked data-slip="INV-2026-0127-001" onchange="saveMailSetting(this)">
-                  <span class="toggle-slider"></span>
-                </label>
-                <span class="save-indicator">保存済</span>
-              </td>
-              <td>¥1,250,000</td>
-              <td>3件</td>
-              <td>2026/01/27</td>
-              <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-001')">詳細</button> <button class="preview-btn" onclick="previewPdf('INV-2026-0127-001')">PDF</button></td>
-            </tr>
-            <tr>
-              <td><input type="checkbox" class="pending-check" data-type="invoice"></td>
-              <td>INV-2026-0127-002</td>
-              <td>東海金属株式会社</td>
-              <td>鈴木 一郎</td>
-              <td>
-                <label class="toggle">
-                  <input type="checkbox" checked data-slip="INV-2026-0127-002" onchange="saveMailSetting(this)">
-                  <span class="toggle-slider"></span>
-                </label>
-                <span class="save-indicator">保存済</span>
-              </td>
-              <td>¥920,000</td>
-              <td>2件</td>
-              <td>2026/01/27</td>
-              <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-002')">詳細</button> <button class="preview-btn" onclick="previewPdf('INV-2026-0127-002')">PDF</button></td>
-            </tr>
-            <tr>
-              <td><input type="checkbox" class="pending-check" data-type="invoice"></td>
-              <td>INV-2026-0127-003</td>
-              <td>名古屋鋼材株式会社</td>
-              <td>鈴木 一郎</td>
-              <td>
-                <label class="toggle">
-                  <input type="checkbox" data-slip="INV-2026-0127-003" onchange="saveMailSetting(this)">
-                  <span class="toggle-slider"></span>
-                </label>
-                <span class="save-indicator">保存済</span>
-              </td>
-              <td>¥2,340,000</td>
-              <td>2件</td>
-              <td>2026/01/27</td>
-              <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-003')">詳細</button> <button class="preview-btn" onclick="previewPdf('INV-2026-0127-003')">PDF</button></td>
-            </tr>
-            <tr>
-              <td><input type="checkbox" class="pending-check" data-type="invoice"></td>
-              <td>INV-2026-0127-004</td>
-              <td>中部産業株式会社</td>
-              <td>佐藤 花子</td>
-              <td>
-                <label class="toggle">
-                  <input type="checkbox" checked data-slip="INV-2026-0127-004" onchange="saveMailSetting(this)">
-                  <span class="toggle-slider"></span>
-                </label>
-                <span class="save-indicator">保存済</span>
-              </td>
-              <td>¥567,000</td>
-              <td>1件</td>
-              <td>2026/01/27</td>
-              <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-004')">詳細</button> <button class="preview-btn" onclick="previewPdf('INV-2026-0127-004')">PDF</button></td>
-            </tr>
-            <tr>
-              <td><input type="checkbox" class="pending-check" data-type="invoice"></td>
-              <td>INV-2026-0127-005</td>
-              <td>三河工業株式会社</td>
-              <td>田中 太郎</td>
-              <td>
-                <label class="toggle">
-                  <input type="checkbox" checked data-slip="INV-2026-0127-005" onchange="saveMailSetting(this)">
-                  <span class="toggle-slider"></span>
-                </label>
-                <span class="save-indicator">保存済</span>
-              </td>
-              <td>¥1,800,000</td>
-              <td>4件</td>
-              <td>2026/01/27</td>
-              <td><button class="detail-btn" onclick="openDetail('INV-2026-0127-005')">詳細</button> <button class="preview-btn" onclick="previewPdf('INV-2026-0127-005')">PDF</button></td>
-            </tr>
-            <tr>
-              <td><input type="checkbox" class="pending-check" data-type="invoice"></td>
-              <td>INV-2026-0126-008</td>
-              <td>愛知鋼材株式会社</td>
-              <td>山田 次郎</td>
-              <td>
-                <label class="toggle">
-                  <input type="checkbox" data-slip="INV-2026-0126-008" onchange="saveMailSetting(this)">
-                  <span class="toggle-slider"></span>
-                </label>
-                <span class="save-indicator">保存済</span>
-              </td>
-              <td>¥2,150,000</td>
-              <td>5件</td>
-              <td>2026/01/26</td>
-              <td><button class="detail-btn" onclick="openDetail('INV-2026-0126-008')">詳細</button> <button class="preview-btn" onclick="previewPdf('INV-2026-0126-008')">PDF</button></td>
-            </tr>
+            <!-- JSで100件生成 -->
           </tbody>
         </table>
       </div>
 
       <!-- 納品書一覧 -->
-      <h4 style="margin: 25px 15px 5px; color: #2c3e50;">納品書 <span class="badge badge-warning">3</span></h4>
-      <div class="table-container">
+      <h4 style="margin: 25px 15px 5px; color: #2c3e50;">納品書 <span class="badge badge-warning" id="delivery-count">0</span></h4>
+      <div class="table-container scrollable">
         <table>
           <thead>
             <tr>
@@ -505,57 +404,7 @@
             </tr>
           </thead>
           <tbody id="delivery-tbody">
-            <tr>
-              <td><input type="checkbox" class="pending-check" data-type="delivery"></td>
-              <td>DLV-2026-0127-001</td>
-              <td>株式会社サンプル工業</td>
-              <td>田中 太郎</td>
-              <td>
-                <label class="toggle">
-                  <input type="checkbox" checked data-slip="DLV-2026-0127-001" onchange="saveMailSetting(this)">
-                  <span class="toggle-slider"></span>
-                </label>
-                <span class="save-indicator">保存済</span>
-              </td>
-              <td>¥450,000</td>
-              <td>2件</td>
-              <td>2026/01/27</td>
-              <td><button class="detail-btn" onclick="openDetail('DLV-2026-0127-001')">詳細</button> <button class="preview-btn" onclick="previewPdf('DLV-2026-0127-001')">PDF</button></td>
-            </tr>
-            <tr>
-              <td><input type="checkbox" class="pending-check" data-type="delivery"></td>
-              <td>DLV-2026-0127-002</td>
-              <td>東海金属株式会社</td>
-              <td>鈴木 一郎</td>
-              <td>
-                <label class="toggle">
-                  <input type="checkbox" checked data-slip="DLV-2026-0127-002" onchange="saveMailSetting(this)">
-                  <span class="toggle-slider"></span>
-                </label>
-                <span class="save-indicator">保存済</span>
-              </td>
-              <td>¥230,000</td>
-              <td>1件</td>
-              <td>2026/01/27</td>
-              <td><button class="detail-btn" onclick="openDetail('DLV-2026-0127-002')">詳細</button> <button class="preview-btn" onclick="previewPdf('DLV-2026-0127-002')">PDF</button></td>
-            </tr>
-            <tr>
-              <td><input type="checkbox" class="pending-check" data-type="delivery"></td>
-              <td>DLV-2026-0127-003</td>
-              <td>岐阜鉄鋼株式会社</td>
-              <td>佐藤 花子</td>
-              <td>
-                <label class="toggle">
-                  <input type="checkbox" data-slip="DLV-2026-0127-003" onchange="saveMailSetting(this)">
-                  <span class="toggle-slider"></span>
-                </label>
-                <span class="save-indicator">保存済</span>
-              </td>
-              <td>¥780,000</td>
-              <td>3件</td>
-              <td>2026/01/27</td>
-              <td><button class="detail-btn" onclick="openDetail('DLV-2026-0127-003')">詳細</button> <button class="preview-btn" onclick="previewPdf('DLV-2026-0127-003')">PDF</button></td>
-            </tr>
+            <!-- JSで100件生成 -->
           </tbody>
         </table>
       </div>
@@ -592,7 +441,7 @@
         </div>
       </div>
 
-      <div class="table-container">
+      <div class="table-container scrollable">
         <table>
           <thead>
             <tr>
@@ -715,7 +564,7 @@
         </div>
       </div>
 
-      <div class="table-container">
+      <div class="table-container scrollable">
         <table id="processed-table">
           <thead>
             <tr>
@@ -831,7 +680,7 @@
         </div>
 
         <!-- 明細テーブル -->
-        <div class="table-container">
+        <div class="table-container scrollable">
           <table class="detail-table">
             <thead>
               <tr>
@@ -1180,6 +1029,72 @@
 
     // 処理済みの日付フィルターにデフォルト値（過去1週間）を設定し、フィルターを実行
     // 次回送信時刻（次の正時）を表示
+    // ダミーデータ100件ずつ生成
+    (function generateDummyData() {
+      const companies = [
+        '株式会社サンプル工業', '東海金属株式会社', '名古屋鋼材株式会社', '中部産業株式会社',
+        '三河工業株式会社', '愛知鋼材株式会社', '静岡工業株式会社', '浜松鋼材株式会社',
+        '掛川金属株式会社', '岡崎鋼材株式会社', '豊田鋼材株式会社', '刈谷工業株式会社',
+        '安城金属株式会社', '西尾鋼材株式会社', '碧南工業株式会社', '岐阜鉄鋼株式会社',
+        '大垣金属株式会社', '各務原鋼材株式会社', '多治見工業株式会社', '関鉄鋼株式会社',
+        '四日市鋼材株式会社', '津金属工業株式会社', '鈴鹿鋼材株式会社', '桑名工業株式会社',
+        '豊橋鋼材株式会社', '蒲郡工業株式会社', '半田鋼材株式会社', '常滑金属株式会社',
+        '瀬戸工業株式会社', '春日井鋼材株式会社'
+      ];
+      const salesPersons = ['田中 太郎', '鈴木 一郎', '佐藤 花子', '山田 次郎', '高橋 三郎', '渡辺 恵子', '伊藤 健一'];
+      const dates = ['2026/01/25', '2026/01/26', '2026/01/27'];
+
+      function generateRows(prefix, type, count, tbodyId) {
+        const tbody = document.getElementById(tbodyId);
+        for (let i = 1; i <= count; i++) {
+          const slip = prefix + '-2026-0127-' + String(i).padStart(3, '0');
+          const company = companies[i % companies.length];
+          const person = salesPersons[i % salesPersons.length];
+          const amount = (Math.floor(Math.random() * 50) + 1) * 50000;
+          const items = Math.floor(Math.random() * 8) + 1;
+          const date = dates[i % dates.length];
+          const checked = Math.random() > 0.2 ? 'checked' : '';
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><input type="checkbox" class="pending-check" data-type="${type}"></td>
+            <td>${slip}</td>
+            <td>${company}</td>
+            <td>${person}</td>
+            <td>
+              <label class="toggle">
+                <input type="checkbox" ${checked} data-slip="${slip}" onchange="saveMailSetting(this)">
+                <span class="toggle-slider"></span>
+              </label>
+              <span class="save-indicator">保存済</span>
+            </td>
+            <td>¥${amount.toLocaleString()}</td>
+            <td>${items}件</td>
+            <td>${date}</td>
+            <td><button class="detail-btn" onclick="openDetail('${slip}')">詳細</button> <button class="preview-btn" onclick="previewPdf('${slip}')">PDF</button></td>
+          `;
+          tbody.appendChild(tr);
+        }
+      }
+
+      generateRows('INV', 'invoice', 100, 'invoice-tbody');
+      generateRows('DLV', 'delivery', 100, 'delivery-tbody');
+
+      // 件数表示を更新
+      document.getElementById('invoice-count').textContent = '100';
+      document.getElementById('delivery-count').textContent = '100';
+      document.getElementById('status-invoice-count').textContent = '100';
+      document.getElementById('status-delivery-count').textContent = '100';
+
+      // チェックボックスのイベントリスナーを再設定
+      document.querySelectorAll('.pending-check').forEach(cb => {
+        cb.addEventListener('change', updatePendingSelectedCount);
+      });
+
+      // localStorageの設定を適用
+      loadMailSettings();
+    })();
+
     (function initNextSendTime() {
       const now = new Date();
       const next = new Date(now);

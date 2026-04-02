@@ -168,6 +168,18 @@ select.form-control {
   overflow-x: auto;
 }
 
+.table-container.scrollable {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.table-container.scrollable thead th {
+  position: sticky;
+  top: 0;
+  background: #f8f9fa;
+  z-index: 1;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
